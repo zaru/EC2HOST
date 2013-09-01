@@ -1,9 +1,13 @@
 <?php
-require 'aws-sdk-php/vendor/autoload.php';
+$rundir = realpath(dirname($argv[0]));
+require $rundir . '/aws-sdk-php/vendor/autoload.php';
+require $rundir . '/config.php';
 
 use Aws\Ec2\Ec2Client;
 
-include('config.php');
+// Change DNS config mode
+$mode = (isset($argv['1']) && $argv['1'] == 'hosts') ? 'hosts' : 'dnsmasq';
+
 $client = Ec2Client::factory($config);
 
 $result = $client->describeInstances();
@@ -30,27 +34,44 @@ foreach ($result['Reservations'] as $item) {
   }
 }
 
-if (!file_exists('/etc/hosts')) {
-  exit;
+if ($mode == 'hosts') {
+  echo generateHosts($ec2Lists);
+} else {
+  echo generateDnsmasq($ec2Lists);
 }
 
-$hostsFile = file('/etc/hosts');
-$newHostsLine = '';
-foreach ($hostsFile as $line) {
-  $flag = false;
-  foreach ($ec2Lists as $host => $gIp) {
-    $gIp = str_replace('.', '\.', $gIp);
-    if (preg_match("/^" . $gIp . "/", $line)) {
-      $flag = true;
-      break;
+function generateHosts($ec2Lists) {
+  if (!file_exists('/etc/hosts')) {
+    return;
+  }
+  
+  $hostsFile = file('/etc/hosts');
+  $newHostsLine = '';
+  foreach ($hostsFile as $line) {
+    $flag = false;
+    foreach ($ec2Lists as $host => $gIp) {
+      $gIp = str_replace('.', '\.', $gIp);
+      if (preg_match("/^" . $gIp . "/", $line)) {
+        $flag = true;
+        break;
+      }
+    }
+    if ($flag === false) {
+      $newHostsLine .= $line;
     }
   }
-  if ($flag === false) {
-    $newHostsLine .= $line;
+  foreach ($ec2Lists as $host => $gIp) {
+    $newHostsLine .= $gIp . ' ' . $host . "\n";
   }
-}
-foreach ($ec2Lists as $host => $gIp) {
-  $newHostsLine .= $gIp . ' ' . $host . "\n";
+  
+  return $newHostsLine;
 }
 
-echo $newHostsLine;
+function generateDnsmasq($ec2Lists) {
+  $result = '';
+  foreach ($ec2Lists as $host => $gIp) {
+    $result .= 'address=/' . $host . '/' . $gIp . "\n";
+  }
+
+  return $result;
+}
