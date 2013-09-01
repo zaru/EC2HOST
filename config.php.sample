@@ -1,0 +1,6 @@
+<?php
+$config = array(
+  'key' => '',
+  'secret' => '',
+  'region' => 'ap-northeast-1',
+);
