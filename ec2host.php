@@ -1,6 +1,6 @@
 <?php
 $rundir = realpath(dirname($argv[0]));
-require $rundir . '/aws-sdk-php/vendor/autoload.php';
+require $rundir . '/vendor/autoload.php';
 require $rundir . '/config.php';
 
 use Aws\Ec2\Ec2Client;
